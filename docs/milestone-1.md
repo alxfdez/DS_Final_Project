@@ -4,31 +4,28 @@
 
 ## 1. Team & Store
 
-- **Team members:** Alejandro Amarillas Coronado, Allison Briseyda Avila Moctezuma, Alejandro Fernández Arias, Isaac Alejandro Garcia Ruiz, Andres Juarez
+- **Team members:** Alejandro Amarillas Coronado, Allison Briseyda Avila Moctezuma, Alejandro Fernández Arias, Isaac Alejandro Garcia Ruiz, Andres Juarez, Ever Zaragoza
 - **Store name:** Semiusados.com
-- **Store vertical / concept:** E-commerce for car selling
+- **Store vertical / concept:** A storefront where customers browse a catalog of vehicles and place an order.
 - **Repository:** https://github.com/alxfdez/DS_Final_Project.git
-- **Short product description:** We sell cars
+- **Short product description:** Semiusados.com is a web storefront for buying automobiles online. Customers browse the vehicle catalog, view each vehicle's details, add it to a cart, check out with a simulated payment, and review their order history.
 
 ## 2. Baseline Validation
 
 Briefly record the evidence that your team verified the starter system before redesigning it.
 
-- [x] Application runs from a clean setup.
-- [ ] Existing automated tests pass locally.
-- [ ] GitHub Actions CI passes.
-- [ ] Catalog → cart → checkout → order flow works end-to-end.
-- [ ] Orders and inventory changes persist after restarting the app.
+- [x] Application runs from a clean setup. 
+- [x] Existing automated tests pass locally.
+ ![alt text](image-1.png)
+- [x] GitHub Actions CI passes.
+![alt text](image-2.png)
+- [x] Catalog → cart → checkout → order flow works end-to-end. ![alt text](image.png)
 
-Add only the compact evidence needed to make these claims reviewable. Do not fill this document with screenshots.
+- [x] Orders and inventory changes persist after restarting the app.
+
 
 ## 3. Current System Design
-
-Add one simple diagram of the system **as it exists now**. Show the major parts, the important dependencies between them, persistence, and the payment dependency.
-
-You may use Mermaid, UML, or another diagramming tool. Accuracy matters more than visual polish.
-
-This diagram was made with mermaid:  
+  
 ```mermaid
 flowchart LR
     Browser["Browser<br/>(Jinja templates + CSS)"]
@@ -65,7 +62,6 @@ flowchart LR
  
 The payment provider is simulated in-process: `FakePaymentProcessor.charge()` succeeds for any non-empty token except `tok_fail`, and is instantiated directly inside the checkout route.
  
-
 ## 4. Responsibilities & Dependencies
 
 | Part / module | Main responsibility | Important dependencies |
@@ -90,16 +86,6 @@ The payment provider is simulated in-process: `FakePaymentProcessor.charge()` su
 6. A single `db.commit()` persists the order, items and inventory changes together; the session cart is cleared and the browser is redirected to `/orders/<id>`, which loads the order with its items (`selectinload`) and renders the confirmation.
 
 ## 5. Design Observations
-
-Record 3–5 evidence-based observations about the baseline. Include all of the following somewhere in the set:
-
-- at least one current design strength;
-- at least one original decision that is reasonable for the current problem;
-- at least one coupling or design-pressure concern;
-- at least one potential technical-debt concern;
-- a clear distinction between **what you observe now** and redesign you might consider only if future requirements justify it.
-
-Do **not** add patterns, layers, interfaces, repositories, factories, or architectural abstractions just in case they might become useful later.
 
 **What we observe now:**
  
