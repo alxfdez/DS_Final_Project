@@ -35,9 +35,10 @@
   
   The catalog shows the car as "Vendido" and `/orders` still lists Pedido #1.
 
+**Defect found and corrected during validation.** On Windows, `python reset_db.py` always failed with `PermissionError: [WinError 32]`, even with no server running. `reset_db.py` calls `create_app()` only to read the database path. `create_app()` runs `create_all`, which leaves a pooled SQLAlchemy connection open on `store.db`, and Windows cannot delete an open file. Linux and macOS can, which is why CI (Ubuntu) never caught it. The fix is one line: `app.extensions["store_engine"].dispose()` before `unlink()` (PR #1).
+
 ## 3. Current System Design
   
-**Defect found and corrected during validation.** On Windows, `python reset_db.py` always failed with `PermissionError: [WinError 32]`, even with no server running. `reset_db.py` calls `create_app()` only to read the database path. `create_app()` runs `create_all`, which leaves a pooled SQLAlchemy connection open on `store.db`, and Windows cannot delete an open file. Linux and macOS can, which is why CI (Ubuntu) never caught it. The fix is one line: `app.extensions["store_engine"].dispose()` before `unlink()` (PR #1).
 
 Diagram made with Mermaid. Arrows mean "depends on / calls".
 
