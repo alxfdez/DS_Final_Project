@@ -73,6 +73,99 @@ flowchart LR
 
 The payment provider is simulated in-process. `FakePaymentProcessor.charge()` succeeds for any non-empty token except `tok_fail`, and the checkout route creates the processor directly.
 
+### 3.1 Class diagram (domain model as implemented)
+
+Complements the module diagram above with the classes that actually exist in the code. `checkout` is not a class; it is shown as a `<<module>>` because it is where the purchase is coordinated.
+
+```mermaid
+classDiagram
+    direction LR
+
+    class Base {
+        <<SQLAlchemy DeclarativeBase>>
+    }
+
+    class Product {
+        +int id
+        +str sku
+        +str name
+        +str description
+        +int price_cents
+        +int stock_quantity
+        +str image_url
+        +int active
+    }
+
+    class Order {
+        +int id
+        +str customer_name
+        +str customer_email
+        +str shipping_address
+        +int subtotal_cents
+        +int shipping_cents
+        +int total_cents
+        +str payment_reference
+        +str status
+        +datetime created_at
+        +list~OrderItem~ items
+    }
+
+    class OrderItem {
+        +int id
+        +int order_id
+        +int product_id
+        +str sku
+        +str product_name
+        +int unit_price_cents
+        +int quantity
+    }
+
+    class CartLine {
+        <<dataclass, not persisted>>
+        +Product product
+        +int quantity
+        +line_total_cents() int
+    }
+
+    class FakePaymentProcessor {
+        <<dataclass>>
+        +charge(amount_cents, token) str
+    }
+
+    class PaymentDeclined {
+        <<Exception>>
+    }
+
+    class checkout {
+        <<module routes/checkout.py>>
+        +STANDARD_SHIPPING_CENTS = 250000
+        +checkout_form()
+        +place_order()
+    }
+
+    Base <|-- Product
+    Base <|-- Order
+    Base <|-- OrderItem
+
+    Order "1" *-- "1..*" OrderItem : items (cascade delete-orphan)
+    OrderItem "*" --> "1" Product : product_id (FK only)
+    CartLine "*" --> "1" Product
+
+    FakePaymentProcessor ..> PaymentDeclined : raises
+    checkout ..> CartLine : get_cart_lines()
+    checkout ..> FakePaymentProcessor : instantiates directly
+    checkout ..> Order : creates
+    checkout ..> OrderItem : creates
+    checkout ..> Product : decrements stock
+```
+
+What the class diagram shows:
+
+- **`Order` owns its `OrderItem`s (composition).** `cascade="all, delete-orphan"` means items cannot exist without their order.
+- **`OrderItem` references `Product` only through the `product_id` foreign key.** There is no ORM `relationship`. Displaying an order never reads `Product`, because `sku`, `product_name` and `unit_price_cents` are copied into the item when the order is placed.
+- **`CartLine` is not persisted.** It is a request-scoped value built from the session cart (`{product_id: qty}`) plus a database lookup.
+- **`checkout` depends on almost every other class.** This is the coupling described in observation 3.
+
 ## 4. Responsibilities & Dependencies
 
 | Part / module | Main responsibility | Important dependencies |
@@ -82,7 +175,7 @@ The payment provider is simulated in-process. `FakePaymentProcessor.charge()` su
 | `store/models.py` | Defines `Product`, `Order` and `OrderItem`. Money is stored as integer cents, and order items keep a copy of the SKU, name and unit price. | SQLAlchemy, `db.Base` |
 | `routes/catalog.py` | Lists active products and shows product detail (404 if missing or inactive). | `db`, `Product`, templates |
 | `routes/cart.py` | Session-based cart: add / update / remove, plus `get_cart_lines()`, which turns session entries into `CartLine` objects. | Flask `session`, `db`, `Product` |
-| `routes/checkout.py` | Shows the checkout form. On POST: validates fields and stock, computes totals (flat delivery fee `STANDARD_SHIPPING_CENTS = 250_000`, i.e. $2,500 MXN), charges the payment, creates the `Order` and its `OrderItem`s, decrements stock, commits and clears the cart. | `cart.get_cart_lines`, `payments`, `db`, `Order`, `OrderItem`, Flask `session` |
+| `routes/checkout.py` | Shows the checkout form. On POST: validates fields and stock, computes totals (flat delivery fee `STANDARD_SHIPPING_CENTS = 250_000`, i.e. $2,500 MXN this changes from the baseline that is 99.0), charges the payment, creates the `Order` and its `OrderItem`s, decrements stock, commits and clears the cart. | `cart.get_cart_lines`, `payments`, `db`, `Order`, `OrderItem`, Flask `session` |
 | `store/payments.py` | Simulated payment provider: returns a payment reference or raises `PaymentDeclined`. | None (stdlib only) |
 | `routes/orders.py` | Order history and order confirmation page. | `db`, `Order` |
 | `seed.py` / `reset_db.py` | Development scripts: load the used-car catalog, or delete the SQLite file. Both build the full app through `create_app()`. | `create_app`, `db`, `Product` |
@@ -144,5 +237,5 @@ The payment provider is simulated in-process. `FakePaymentProcessor.charge()` su
   - Reviewed and approved PR #1.
   - Ran `pytest` locally and checked GitHub Actions.
   - Ran the purchase flow manually and checked persistence after restarting.
-  - Checked the diagram, the responsibilities table and each design observation against the source code.
+  - Designed the UML diagram, and reviewed the responsibilities table and each design observation against the source code.
   - The team is responsible for, and able to explain, every statement in this document.
