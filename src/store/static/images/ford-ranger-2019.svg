@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+<rect width="800" height="600" rx="40" fill="#e9eaec"/>
+<rect x="0" y="452" width="800" height="148" fill="#000" opacity=".04"/>
+<ellipse cx="406" cy="458" rx="330" ry="18" fill="#000" opacity=".14"/>
+<path d="M90,405 L90,332 Q94,306 130,300 L230,292 L290,212 Q300,200 322,200 L452,200 Q468,200 468,216 L468,300 L722,300 L722,405 Z" fill="#2b2f36"/>
+<path d="M310,218 L266,288 L380,288 L380,218 Z" fill="#dbe7f3" opacity=".9"/>
+<path d="M394,218 L394,288 L452,288 L452,218 Z" fill="#dbe7f3" opacity=".9"/>
+<rect x="96" y="318" width="28" height="12" rx="6" fill="#fff6c9"/>
+<circle cx="214" cy="402" r="62" fill="#e9eaec"/>
+<circle cx="214" cy="402" r="56" fill="#1d2129"/>
+<circle cx="214" cy="402" r="28" fill="#b9c0c9"/>
+<circle cx="214" cy="402" r="9" fill="#1d2129"/>
+<circle cx="612" cy="402" r="62" fill="#e9eaec"/>
+<circle cx="612" cy="402" r="56" fill="#1d2129"/>
+<circle cx="612" cy="402" r="28" fill="#b9c0c9"/>
+<circle cx="612" cy="402" r="9" fill="#1d2129"/>
+<text x="400" y="530" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#0f1f38">Ford Ranger · 2019</text>
+<text x="44" y="70" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#e85d1c">Semiusados.com</text>
+</svg>

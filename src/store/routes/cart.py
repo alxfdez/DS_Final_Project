@@ -45,14 +45,14 @@ def view_cart():
 def add(product_id: int):
     product = get_session().get(Product, product_id)
     if product is None or not product.active:
-        flash("Product not found.", "error")
+        flash("Auto no encontrado.", "error")
         return redirect(url_for("catalog.catalog"))
 
     cart = _raw_cart()
     key = str(product_id)
     cart[key] = int(cart.get(key, 0)) + 1
     session.modified = True
-    flash(f"Added {product.name} to your cart.", "success")
+    flash(f"Apartaste {product.name} en tu carrito.", "success")
     return redirect(request.referrer or url_for("catalog.catalog"))
 
 

@@ -15,4 +15,4 @@ def test_update_cart_quantity(client, first_product_id):
 def test_remove_from_cart(client, first_product_id):
     client.post(f"/cart/add/{first_product_id}")
     client.post(f"/cart/remove/{first_product_id}")
-    assert b"Your cart is empty" in client.get("/cart").data
+    assert "Tu carrito está vacío".encode() in client.get("/cart").data

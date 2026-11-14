@@ -1,31 +1,36 @@
 {% extends "base.html" %}
-{% block title %}{{ config.STORE_NAME }} · Catalog{% endblock %}
+{% block title %}{{ config.STORE_NAME }} · Autos seminuevos{% endblock %}
 {% block content %}
 <section class="hero">
   <div>
-    <p class="eyebrow">STARTER STOREFRONT</p>
-    <h1>A small store built to evolve.</h1>
-    <p>Browse the baseline catalog, place an order, then make this product your team's own.</p>
+    <p class="eyebrow">AUTOS SEMINUEVOS</p>
+    <h1>Tu próximo auto ya tuvo un dueño. Tú serás el mejor.</h1>
+    <p>Autos usados revisados, con precio fijo y kilometraje verificado. Elige, aparta y recíbelo en tu casa.</p>
+    <ul class="hero-points"><li>Inspección de 150 puntos</li><li>Precio sin regateo</li><li>Entrega a domicilio</li></ul>
   </div>
 </section>
 <section>
   <div class="section-heading">
-    <div><p class="eyebrow">CATALOG</p><h2>Products</h2></div>
-    <span>{{ products|length }} items</span>
+    <div><p class="eyebrow">INVENTARIO</p><h2>Autos disponibles</h2></div>
+    <span>{{ products|length }} modelos</span>
   </div>
   <div class="product-grid">
     {% for product in products %}
-    <article class="product-card">
+    <article class="product-card{% if product.stock_quantity == 0 %} sold-out{% endif %}">
       <a href="{{ url_for('catalog.product_detail', product_id=product.id) }}">
         <img src="{{ product.image_url }}" alt="{{ product.name }}">
       </a>
       <div class="product-card-body">
-        <div class="product-meta"><span>{{ product.sku }}</span><span>{{ product.stock_quantity }} in stock</span></div>
+        <div class="product-meta"><span>{{ product.sku }}</span>
+          {% if product.stock_quantity > 0 %}<span class="badge">{{ product.stock_quantity }} disponible{{ 's' if product.stock_quantity != 1 }}</span>{% else %}<span class="badge sold">Vendido</span>{% endif %}
+        </div>
         <h3><a href="{{ url_for('catalog.product_detail', product_id=product.id) }}">{{ product.name }}</a></h3>
         <p>{{ product.description }}</p>
         <div class="product-actions">
           <strong>{{ product.price_cents|money }}</strong>
-          <form method="post" action="{{ url_for('cart.add', product_id=product.id) }}"><button>Add to cart</button></form>
+          {% if product.stock_quantity > 0 %}
+          <form method="post" action="{{ url_for('cart.add', product_id=product.id) }}"><button>Apartar</button></form>
+          {% endif %}
         </div>
       </div>
     </article>

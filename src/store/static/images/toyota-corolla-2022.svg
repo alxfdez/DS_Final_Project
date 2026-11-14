@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+<rect width="800" height="600" rx="40" fill="#eceef0"/>
+<rect x="0" y="452" width="800" height="148" fill="#000" opacity=".04"/>
+<ellipse cx="406" cy="458" rx="330" ry="18" fill="#000" opacity=".14"/>
+<path d="M110,400 L110,340 Q114,314 150,309 L250,299 L322,236 Q336,222 362,222 L500,222 Q526,222 546,238 L616,297 L680,307 Q702,312 702,336 L702,400 Z" fill="#5d6670"/>
+<path d="M338,240 L284,296 L418,296 L418,240 Z" fill="#dbe7f3" opacity=".9"/>
+<path d="M434,240 L434,296 L592,296 L532,248 Q522,240 506,240 Z" fill="#dbe7f3" opacity=".9"/>
+<rect x="662" y="322" width="28" height="12" rx="6" fill="#fff6c9"/>
+<circle cx="232" cy="402" r="56" fill="#eceef0"/>
+<circle cx="232" cy="402" r="50" fill="#1d2129"/>
+<circle cx="232" cy="402" r="25" fill="#b9c0c9"/>
+<circle cx="232" cy="402" r="8" fill="#1d2129"/>
+<circle cx="590" cy="402" r="56" fill="#eceef0"/>
+<circle cx="590" cy="402" r="50" fill="#1d2129"/>
+<circle cx="590" cy="402" r="25" fill="#b9c0c9"/>
+<circle cx="590" cy="402" r="8" fill="#1d2129"/>
+<text x="400" y="530" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#0f1f38">Toyota Corolla · 2022</text>
+<text x="44" y="70" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#e85d1c">Semiusados.com</text>
+</svg>

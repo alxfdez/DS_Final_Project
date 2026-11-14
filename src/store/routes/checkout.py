@@ -8,7 +8,8 @@ from ..payments import FakePaymentProcessor, PaymentDeclined
 from .cart import get_cart_lines
 
 bp = Blueprint("checkout", __name__, url_prefix="/checkout")
-STANDARD_SHIPPING_CENTS = 9_900
+# Semiusados.com: flat home-delivery fee for a car (MXN cents).
+STANDARD_SHIPPING_CENTS = 250_000
 
 
 @bp.get("")
@@ -16,7 +17,7 @@ def checkout_form():
     db = get_session()
     lines = get_cart_lines(db)
     if not lines:
-        flash("Your cart is empty.", "error")
+        flash("Tu carrito está vacío.", "error")
         return redirect(url_for("cart.view_cart"))
     subtotal = sum(line.line_total_cents for line in lines)
     return render_template(
@@ -33,7 +34,7 @@ def place_order():
     db = get_session()
     lines = get_cart_lines(db)
     if not lines:
-        flash("Your cart is empty.", "error")
+        flash("Tu carrito está vacío.", "error")
         return redirect(url_for("cart.view_cart"))
 
     customer_name = request.form.get("customer_name", "").strip()
@@ -42,12 +43,12 @@ def place_order():
     payment_token = request.form.get("payment_token", "").strip()
 
     if not all([customer_name, customer_email, shipping_address, payment_token]):
-        flash("Please complete all checkout fields.", "error")
+        flash("Completa todos los campos del checkout.", "error")
         return redirect(url_for("checkout.checkout_form"))
 
     for line in lines:
         if line.quantity > line.product.stock_quantity:
-            flash(f"Not enough stock for {line.product.name}.", "error")
+            flash(f"No hay suficiente inventario de {line.product.name}.", "error")
             return redirect(url_for("cart.view_cart"))
 
     subtotal = sum(line.line_total_cents for line in lines)
@@ -56,7 +57,7 @@ def place_order():
     try:
         payment_reference = FakePaymentProcessor().charge(total, payment_token)
     except PaymentDeclined:
-        flash("Payment was declined. Try a different test token.", "error")
+        flash("El pago fue rechazado. Intenta con otro token de prueba.", "error")
         return redirect(url_for("checkout.checkout_form"))
 
     order = Order(
@@ -86,5 +87,5 @@ def place_order():
 
     db.commit()
     session["cart"] = {}
-    flash("Order placed successfully.", "success")
+    flash("¡Compra realizada con éxito!", "success")
     return redirect(url_for("orders.order_detail", order_id=order.id))

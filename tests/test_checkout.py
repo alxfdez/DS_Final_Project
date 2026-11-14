@@ -23,7 +23,7 @@ def _checkout(client, product_id, token="tok_success", quantity=1):
 def test_checkout_happy_path_creates_order(client, app, first_product_id):
     response = _checkout(client, first_product_id)
     assert response.status_code == 200
-    assert b"Order #1" in response.data
+    assert b"Pedido #1" in response.data
     with app.app_context():
         assert get_session().scalar(select(func.count()).select_from(Order)) == 1
 
@@ -46,7 +46,7 @@ def test_checkout_decreases_inventory(client, app, first_product_id):
 
 def test_insufficient_inventory_is_rejected(client, app, first_product_id):
     response = _checkout(client, first_product_id, quantity=8)
-    assert b"Not enough stock" in response.data
+    assert b"No hay suficiente inventario" in response.data
     with app.app_context():
         assert get_session().scalar(select(func.count()).select_from(Order)) == 0
         assert get_session().get(Product, first_product_id).stock_quantity == 5
@@ -54,7 +54,7 @@ def test_insufficient_inventory_is_rejected(client, app, first_product_id):
 
 def test_payment_failure_does_not_create_order(client, app, first_product_id):
     response = _checkout(client, first_product_id, token="tok_fail")
-    assert b"Payment was declined" in response.data
+    assert b"El pago fue rechazado" in response.data
     with app.app_context():
         assert get_session().scalar(select(func.count()).select_from(Order)) == 0
         assert get_session().get(Product, first_product_id).stock_quantity == 5
@@ -64,5 +64,5 @@ def test_order_history_displays_persisted_order(client, first_product_id):
     _checkout(client, first_product_id)
     response = client.get("/orders")
     assert response.status_code == 200
-    assert b"Order #1" in response.data
+    assert b"Pedido #1" in response.data
     assert b"Ada Lovelace" in response.data
