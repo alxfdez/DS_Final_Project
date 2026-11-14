@@ -15,7 +15,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.config.from_mapping(
         SECRET_KEY=os.environ.get("STORE_SECRET_KEY", "dev-only-change-me"),
         DATABASE=os.environ.get("STORE_DATABASE", str(database_path)),
-        STORE_NAME=os.environ.get("STORE_NAME", "Starter Store"),
+        STORE_NAME=os.environ.get("STORE_NAME", "Semiusados.com"),
     )
 
     if test_config:
@@ -36,6 +36,6 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.template_filter("money")
     def money(cents: int) -> str:
-        return f"${cents / 100:,.2f}"
+        return f"${cents / 100:,.2f} MXN"
 
     return app

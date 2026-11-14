@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+<rect width="800" height="600" rx="40" fill="#f4e6e8"/>
+<rect x="0" y="452" width="800" height="148" fill="#000" opacity=".04"/>
+<ellipse cx="406" cy="458" rx="330" ry="18" fill="#000" opacity=".14"/>
+<path d="M100,405 L100,322 Q104,296 140,290 L232,282 L292,200 Q304,185 328,185 L602,185 Q632,185 648,206 L690,278 Q706,290 706,320 L706,405 Z" fill="#7a1f2b"/>
+<path d="M310,203 L262,280 L440,280 L440,203 Z" fill="#dbe7f3" opacity=".9"/>
+<path d="M456,203 L456,280 L670,280 L632,214 Q626,203 610,203 Z" fill="#dbe7f3" opacity=".9"/>
+<rect x="106" y="306" width="28" height="12" rx="6" fill="#fff6c9"/>
+<circle cx="226" cy="402" r="62" fill="#f4e6e8"/>
+<circle cx="226" cy="402" r="56" fill="#1d2129"/>
+<circle cx="226" cy="402" r="28" fill="#b9c0c9"/>
+<circle cx="226" cy="402" r="9" fill="#1d2129"/>
+<circle cx="590" cy="402" r="62" fill="#f4e6e8"/>
+<circle cx="590" cy="402" r="56" fill="#1d2129"/>
+<circle cx="590" cy="402" r="28" fill="#b9c0c9"/>
+<circle cx="590" cy="402" r="9" fill="#1d2129"/>
+<text x="400" y="530" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#0f1f38">Mazda CX-5 · 2021</text>
+<text x="44" y="70" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#e85d1c">Semiusados.com</text>
+</svg>

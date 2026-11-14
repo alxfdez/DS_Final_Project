@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+<rect width="800" height="600" rx="40" fill="#f6e9eb"/>
+<rect x="0" y="452" width="800" height="148" fill="#000" opacity=".04"/>
+<ellipse cx="406" cy="458" rx="330" ry="18" fill="#000" opacity=".14"/>
+<path d="M130,400 L130,338 Q134,314 168,308 L262,297 L330,232 Q344,220 370,220 L560,220 Q590,222 608,250 L660,318 Q672,330 672,350 L672,400 Z" fill="#b3263a"/>
+<path d="M346,238 L290,294 L432,294 L432,238 Z" fill="#dbe7f3" opacity=".9"/>
+<path d="M448,238 L448,294 L628,294 L590,246 Q584,238 570,238 Z" fill="#dbe7f3" opacity=".9"/>
+<rect x="136" y="324" width="28" height="12" rx="6" fill="#fff6c9"/>
+<circle cx="246" cy="402" r="56" fill="#f6e9eb"/>
+<circle cx="246" cy="402" r="50" fill="#1d2129"/>
+<circle cx="246" cy="402" r="25" fill="#b9c0c9"/>
+<circle cx="246" cy="402" r="8" fill="#1d2129"/>
+<circle cx="566" cy="402" r="56" fill="#f6e9eb"/>
+<circle cx="566" cy="402" r="50" fill="#1d2129"/>
+<circle cx="566" cy="402" r="25" fill="#b9c0c9"/>
+<circle cx="566" cy="402" r="8" fill="#1d2129"/>
+<text x="400" y="530" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#0f1f38">Mazda 3 · 2020</text>
+<text x="44" y="70" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#e85d1c">Semiusados.com</text>
+</svg>

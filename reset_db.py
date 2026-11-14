@@ -9,6 +9,9 @@ def reset() -> None:
     app = create_app()
     with app.app_context():
         db_path = Path(current_app.config["DATABASE"])
+    # create_app() opens a pooled SQLite connection (via create_all). On Windows
+    # an open file cannot be deleted, so release it before unlinking.
+    app.extensions["store_engine"].dispose()
     if db_path.exists():
         db_path.unlink()
         print(f"Removed {db_path}")
