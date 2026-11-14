@@ -25,7 +25,9 @@
 ![alt text](image-2.png) Workflow `tests` is green on every run: the initial commit, PR #1 (`pull_request` and `push`), the merge into `main`, and this document's commits.
 - [x] Catalog → cart → checkout → order flow works end-to-end. 
  ![alt text](image.png)
- Reserved the *Ford Ranger XLT 4x2 2019* (`SEMI-0008`) → cart → checkout with `tok_success` → redirected to **Pedido #1**, total $452,400.00 MXN ($449,900 + $2,500 delivery). With `tok_fail` the payment is declined and no order is created (also covered by `test_payment_failure_does_not_create_order`).- [x] Orders and inventory changes persist after restarting the app.
+ Reserved the *Ford Ranger XLT 4x2 2019* (`SEMI-0008`) → cart → checkout with `tok_success` → redirected to **Pedido #1**, total $452,400.00 MXN ($449,900 + $2,500 delivery). With `tok_fail` the payment is declined and no order is created (also covered by `test_payment_failure_does_not_create_order`).
+
+- [x] Orders and inventory changes persist after restarting the app.
   After stopping and restarting the server, a direct SQLite query shows:
   - `orders`: `(1, 'Cliente Prueba', 45240000, 'pay_6879cd4cc39d', 'confirmed')`
   - `order_items`: `(1, 'SEMI-0008', 'Ford Ranger XLT 4x2 2019', 44990000, 1)`
