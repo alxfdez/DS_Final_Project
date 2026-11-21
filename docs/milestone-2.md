@@ -142,59 +142,230 @@ Checkout depends only on the `FulfillmentStrategy` interface and does not know w
 
 - We reuse a single `FlatRateShipping` class instead of creating one class per option.
 - We did not implement distance pricing, zones or a database table in advance.
-- A missing option defaults to `standard`, so the 12 original tests pass without modification.
+- A missing option defaults to `standard`, so a request without the new field behaves exactly as before. All the original tests are kept and still pass (see §8).
 
 **Our judgment:** the extra code is small and isolated in one module. In return, the most fragile function in the system (`place_order`) stops growing with every new fulfillment rule. For a requirement that explicitly says "more options will come", we believe it removes more complexity than it adds.
 
 ## 6. Important Structural Changes
 
-<!-- TODO: complete when the checkout, persistence and UI PRs are merged. -->
-
 - **New module `src/store/fulfillment.py`.** Strategy interface, `StorePickup`, `FlatRateShipping`, registry and `calculate_totals`.
-- **`Order.fulfillment_method`.** New `String(30)` column with default `standard`. It stores the strategy code as plain text instead of a DB enum, so adding an option needs no schema change. **Migration:** `db.init_app` runs `_ensure_order_fulfillment_column`, an idempotent `ALTER TABLE orders ADD COLUMN ... NOT NULL DEFAULT 'standard'` that only runs when the column is missing. We chose it over `reset_db.py` + `seed.py` (the starter's suggested approach) because it keeps existing `store.db` files and their orders working with no manual step. Trade-off: `db.py` now contains schema-specific logic, and each future column would need its own check; for one column this is cheaper than adopting a migration framework, which the starter explicitly avoids. Existing orders are read as `standard`, the only option that existed before.
-- **`routes/checkout.py`.** Uses `get_strategy` / `validate` / `calculate_totals`; `STANDARD_SHIPPING_CENTS` is removed. The selected method and strategy fee are persisted, with an empty address for pickup. The existing payment, inventory and commit sequence is preserved.
-- **Templates.** Options and costs are rendered from the registry; the address field is shown only when required, and the summary updates when the customer changes the option.
+- **`Order.fulfillment_method`.** New `String(30)` column with default `standard`. It stores the strategy code as plain text instead of a DB enum, so adding an option needs no schema change.
+  - **Migration:** `db.init_app` runs `_ensure_order_fulfillment_column`, an idempotent `ALTER TABLE orders ADD COLUMN ... NOT NULL DEFAULT 'standard'` that only runs when the column is missing.
+  - **Why not `reset_db.py` + `seed.py`:** the starter suggests that approach, but the migration keeps existing `store.db` files and their orders working with no manual step. Existing orders are read as `standard`, the only option that existed before.
+  - **Trade-off:** `db.py` now contains schema-specific logic, and each future column would need its own check. For one column this is cheaper than adopting a migration framework, which the starter explicitly avoids.
+- **`routes/checkout.py`.** Uses `get_strategy` / `validate` / `calculate_totals`; `STANDARD_SHIPPING_CENTS` is removed. The selected method and the strategy's fee are persisted, with an empty address for pickup. The existing payment, inventory and commit sequence is preserved.
+- **`store/__init__.py`.** New Jinja filter `fulfillment_strategy` that turns the stored code into its strategy, so templates show the strategy's `label` instead of a hard-coded text.
+- **Templates.**
+  - `checkout.html` renders the options and their costs from the registry. The address field is shown and required only when the selected strategy needs it, and the summary updates when the customer changes the option. The server still validates; the JavaScript is only for usability.
+  - `order_confirmation.html` and `orders.html` show the chosen option. Pickup orders show "Recoger en agencia" instead of an address.
 
 ## 7. Before / After Design
 
-<!-- TODO: Mermaid class diagram before (M1 §3.1) and after; place_order snippets before/after. -->
+### 7.1 Class diagram — before (M1 baseline)
+
+```mermaid
+classDiagram
+    direction LR
+    class checkout {
+        <<module routes/checkout.py>>
+        +STANDARD_SHIPPING_CENTS = 250000
+        +checkout_form()
+        +place_order()
+    }
+    class Order {
+        +str shipping_address
+        +int subtotal_cents
+        +int shipping_cents
+        +int total_cents
+    }
+    class FakePaymentProcessor {
+        +charge(amount_cents, token) str
+    }
+    checkout ..> Order : creates
+    checkout ..> FakePaymentProcessor : charge(subtotal + constant)
+```
+
+The fee and the "address is required" rule live inside the route. There is no concept of a fulfillment option.
+
+### 7.2 Class diagram — after (M2)
+
+```mermaid
+classDiagram
+    direction LR
+    class FulfillmentStrategy {
+        <<interface>>
+        +str code
+        +str label
+        +str eta
+        +bool requires_address
+        +validate(request) str | None
+        +fee_cents(request) int
+    }
+    class StorePickup {
+        +validate() None
+        +fee_cents() 0
+    }
+    class FlatRateShipping {
+        +int flat_fee_cents
+        +validate() address required
+        +fee_cents() flat_fee_cents
+    }
+    class FulfillmentRequest {
+        <<frozen dataclass>>
+        +str shipping_address
+        +int subtotal_cents
+        +from_cart(lines, address)$
+    }
+    class CheckoutTotals {
+        <<frozen dataclass>>
+        +int subtotal_cents
+        +int shipping_cents
+        +int total_cents
+    }
+    class registry {
+        <<module fulfillment.py>>
+        +STRATEGIES: dict
+        +get_strategy(code)
+        +available_strategies()
+        +calculate_totals(strategy, request)
+    }
+    class checkout {
+        <<module routes/checkout.py>>
+        +checkout_form()
+        +place_order()
+    }
+    class Order {
+        +str shipping_address
+        +str fulfillment_method
+        +int subtotal_cents
+        +int shipping_cents
+        +int total_cents
+    }
+
+    FulfillmentStrategy <|.. StorePickup
+    FulfillmentStrategy <|.. FlatRateShipping
+    registry o-- FulfillmentStrategy : pickup, standard, express
+    registry ..> CheckoutTotals : returns
+    FulfillmentStrategy ..> FulfillmentRequest : uses
+    checkout ..> registry : get_strategy / calculate_totals
+    checkout ..> FulfillmentStrategy : validate()
+    checkout ..> Order : creates with fulfillment_method
+```
+
+`standard` and `express` are two `FlatRateShipping` instances. `checkout` depends on the interface and the registry, never on a concrete option.
+
+### 7.3 `place_order` — before and after
+
+Before (fee and address rule hard-coded in the route):
+
+```python
+if not all([customer_name, customer_email, shipping_address, payment_token]):
+    flash("Completa todos los campos del checkout.", "error")
+    ...
+subtotal = sum(line.line_total_cents for line in lines)
+total = subtotal + STANDARD_SHIPPING_CENTS
+payment_reference = FakePaymentProcessor().charge(total, payment_token)
+order = Order(..., shipping_address=shipping_address,
+              shipping_cents=STANDARD_SHIPPING_CENTS, total_cents=total, ...)
+```
+
+After (the route asks the selected strategy):
+
+```python
+strategy = get_strategy(request.form.get("fulfillment_method"))
+if strategy is None:
+    flash("Selecciona un método de entrega válido.", "error")
+    ...
+fulfillment_request = FulfillmentRequest.from_cart(lines, shipping_address)
+validation_error = strategy.validate(fulfillment_request)
+if validation_error:
+    flash(validation_error, "error")
+    ...
+if not all([customer_name, customer_email, payment_token]):
+    ...
+totals = calculate_totals(strategy, fulfillment_request)
+payment_reference = FakePaymentProcessor().charge(totals.total_cents, payment_token)
+order = Order(...,
+              shipping_address=fulfillment_request.shipping_address if strategy.requires_address else "",
+              fulfillment_method=strategy.code,
+              subtotal_cents=totals.subtotal_cents,
+              shipping_cents=totals.shipping_cents,
+              total_cents=totals.total_cents, ...)
+```
+
+Adding a fourth option, for example zone-based shipping, does not change this code.
 
 ## 8. Tests Added or Changed
 
-**`tests/test_fulfillment.py`** (11 unit tests):
+`pytest` collects **49 tests** and all of them pass locally and in GitHub Actions. At the M1 baseline there were 12.
 
-- The three options are offered in order.
-- Fee and address rule for each option, including a whitespace-only address.
-- A missing code defaults to standard; an unknown code is rejected.
-- Subtotal and totals are calculated correctly.
-- Extensibility: a new strategy registered from outside the module.
+| File | Tests | What they cover |
+|---|---|---|
+| `tests/test_fulfillment.py` (new) | 11 | Unit tests of each strategy without Flask or a DB: the three options in order; the fee and address rule of each option, including a whitespace-only address; a missing code defaults to standard; an unknown code is rejected; subtotal and totals; **extensibility**: a distance-based strategy defined only in the test is registered and works without editing `fulfillment.py`. |
+| `tests/test_checkout.py` (changed) | 14 (6 original + 8 new) | New: the form lists the three options with $2,500 and $5,900; missing method → `standard`; express persists its fee; pickup needs no address and does not store one even if one is sent; address handling uses the strategy's `requires_address`, not the `pickup` code; invalid method rejected; shipping without address rejected. |
+| `tests/test_fulfillment_checkout.py` (new) | 10 (6 functions, 4 run for both `pickup` and `express`) | End-to-end with the new options: the payment is charged subtotal + fee; inventory decreases; a declined payment creates no order and keeps stock; the confirmation page and order history show the option; the option survives an app restart. |
+| `tests/test_order_persistence.py` (new) | 8 | `fulfillment_method` is saved and read back; default `standard`; the migration adds the column to an old database, keeps old orders as `standard`, accepts new methods afterwards and is idempotent; every registered strategy can be persisted; the model default matches `DEFAULT_STRATEGY_CODE`. |
+| `tests/test_cart.py`, `tests/test_catalog.py` | 6 | Unchanged. |
 
-The 12 original tests pass unchanged (23 tests in total so far).
+**How the original checkout tests were changed:**
 
-<!-- TODO: checkout integration tests (pickup without address, express fee persisted, invalid code, etc.) and pytest screenshot. -->
+- The 6 original checkout tests keep their names and assertions: order created, items persisted, inventory decreased, insufficient stock rejected, declined payment creates no order, order history.
+- The shared helper `_checkout` gained two optional parameters, `fulfillment_method="standard"` and `address`, so the same helper can be reused for the new options.
+- `test_checkout_happy_path_creates_order` gained assertions on the stored method and fee.
+- A dedicated test (`test_checkout_defaults_missing_fulfillment_method_to_standard`) sends the old form without the new field, which proves the baseline request still works.
+
+**Regression check with the untouched M1 tests:** we took the M1 versions of `conftest.py`, `test_cart.py`, `test_catalog.py` and `test_checkout.py` (`git show e020450:tests/...`) and ran them against the M2 code. Result: **12 passed**. The original suite, without any edits, still passes after the change.
+
+<!-- TODO: insert pytest screenshot: docs/m2-pytest.png -->
 
 ## 9. Screenshots of the Working Fulfillment Options
 
-<!-- TODO -->
+<!-- TODO: take these screenshots and save them in docs/ -->
+
+1. `docs/m2-checkout-standard.png`: checkout with **Envío estándar** selected. Address field visible, delivery $2,500.
+2. `docs/m2-checkout-express.png`: checkout with **Envío express** selected. Total updated with $5,900.
+3. `docs/m2-checkout-pickup.png`: checkout with **Recoger en agencia** selected. Address field hidden, delivery $0.
+4. `docs/m2-error-address.png`: error when submitting a shipping option without an address.
+5. `docs/m2-confirmation-pickup.png` and `docs/m2-confirmation-express.png`: confirmation pages showing the option.
+6. `docs/m2-orders.png`: order history with the option badge on each order.
 
 ## 10. GitHub Actions Evidence
 
-<!-- TODO -->
+The `tests` workflow (`.github/workflows/tests.yml`, `pytest` on Ubuntu with Python 3.12) ran on every push and on every pull request of this milestone. **All runs passed**, including:
+
+- the `pull_request` runs of PRs #4, #5, #6 and #7;
+- the `push` runs on each feature branch;
+- the `push` run on `main` after each merge. The last one is the merge of PR #7, with 49 tests.
+
+<!-- TODO: insert screenshot of the Actions tab: docs/m2-actions.png -->
 
 ## 11. Git / PR Evidence
 
-<!-- TODO: list of PRs with reviewer and CI status. -->
+We used one branch and one pull request per part of the change, merged into `main` in dependency order:
+
+| PR | Branch | Author | Content | CI |
+|---|---|---|---|---|
+| #3 | `feat/fulfillment-strategy` | Andres Juarez | Strategy module, 11 unit tests, first version of this document | ✅ |
+| #4 | `feat/order-fulfillment-column` | Alejandro Fernández Arias | `fulfillment_method` column, idempotent migration, persistence tests | ✅ |
+| #5 | `feat/checkout-fulfillment` | Alejandro Amarillas Coronado | `place_order` / `checkout_form` use the strategies; fix to rely on `requires_address` | ✅ |
+| #6 | `feat/fulfillment-ui` | Allison Briseyda Ávila Moctezuma | Option selector, dynamic summary, option shown in confirmation and history | ✅ |
+| #7 | `test/fulfillment-integration` | Ever Zaragoza Cerpas | End-to-end integration tests for the new options | ✅ |
+
+Each PR is small and focused on one concern, so it can be reviewed on its own. The commit history on `main` shows the order: strategy → persistence → checkout → UI → integration tests.
+
+<!-- TODO: add the reviewer of each PR once the reviews are recorded on GitHub, and screenshots of the PR list and one PR's review/checks: docs/m2-prs.png -->
 
 ## 12. AI Use
 
-<!-- TODO: complete at the end of the milestone. -->
-
 - **Tool:** Claude Code (Anthropic).
-- **What it helped with so far:**
-  - Analyzing where the Change Request hits the current code.
+- **What it helped with:**
+  - Analyzing where the Change Request hits the current code and splitting the work into six parts.
   - Comparing Strategy against a data-only registry and `if/elif`.
-  - Drafting `fulfillment.py`, its unit tests and this document.
+  - Drafting `fulfillment.py` and its unit tests (PR #3).
+  - Drafting this document, checking the merged code and tests against the requirements, and writing the before/after diagrams.
 - **What the team decided or validated:**
-  - The Strategy pattern, on our advisor's recommendation.
-  - The adapted fees.
-  - Code review of every PR.
+  - Chose the Strategy pattern, following our advisor's recommendation.
+  - Chose the adapted fees for car delivery.
+  - Implemented and tested persistence, checkout, UI and integration tests (PRs #4–#7).
+  - Ran the app manually and took the screenshots.
+  - The team is responsible for, and able to explain, every statement in this document.
