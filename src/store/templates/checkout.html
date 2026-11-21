@@ -6,10 +6,10 @@
 <form method="post" class="form-card">
   <label>Nombre completo<input required name="customer_name" autocomplete="name"></label>
   <label>Correo electrónico<input required type="email" name="customer_email" autocomplete="email"></label>
-  <fieldset>
+  <fieldset class="fulfillment-options">
     <legend>Método de entrega</legend>
     {% for option in fulfillment_options %}
-    <label>
+    <label class="fulfillment-option">
       <input
         type="radio"
         name="fulfillment_method"
@@ -19,8 +19,11 @@
         data-total-cents="{{ option.total_cents }}"
         {% if option.strategy.code == default_fulfillment_method %}checked{% endif %}
       >
-      {{ option.strategy.label }} · {{ option.shipping_cents|money }}
-      <small>{{ option.strategy.eta }}</small>
+      <span class="fulfillment-option-copy">
+        <strong>{{ option.strategy.label }}</strong>
+        <small>{{ option.strategy.eta }}</small>
+      </span>
+      <strong class="fulfillment-option-price">{{ option.shipping_cents|money }}</strong>
     </label>
     {% endfor %}
   </fieldset>

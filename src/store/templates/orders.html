@@ -5,7 +5,15 @@
 {% if orders %}
 <div class="order-list">
 {% for order in orders %}
-<a class="order-list-row" href="{{ url_for('orders.order_detail', order_id=order.id) }}"><span><strong>Pedido #{{ order.id }}</strong><small>{{ order.customer_name }} · {{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</small></span><span>{{ order.total_cents|money }}</span></a>
+{% set strategy = order.fulfillment_method|fulfillment_strategy %}
+<a class="order-list-row" href="{{ url_for('orders.order_detail', order_id=order.id) }}">
+  <span>
+    <strong>Pedido #{{ order.id }}</strong>
+    <small>{{ order.customer_name }} · {{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+    <span class="fulfillment-badge">{{ strategy.label if strategy else order.fulfillment_method }}</span>
+  </span>
+  <span>{{ order.total_cents|money }}</span>
+</a>
 {% endfor %}
 </div>
 {% else %}<div class="empty-state"><h2>Aún no hay pedidos.</h2><p>Completa una compra para registrar el primer pedido.</p></div>{% endif %}

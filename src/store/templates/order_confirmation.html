@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Pedido #{{ order.id }} · {{ config.STORE_NAME }}{% endblock %}
 {% block content %}
-<section class="order-hero"><p class="eyebrow">COMPRA CONFIRMADA</p><h1>Pedido #{{ order.id }}</h1><p>Gracias, {{ order.customer_name }}. Tu pedido quedó registrado y un asesor coordinará la entrega.</p></section>
+{% set strategy = order.fulfillment_method|fulfillment_strategy %}
+<section class="order-hero"><p class="eyebrow">COMPRA CONFIRMADA</p><h1>Pedido #{{ order.id }}</h1><p>Gracias, {{ order.customer_name }}. {{ 'Un asesor te indicará dónde y cuándo recoger tu auto.' if strategy and not strategy.requires_address else 'Un asesor coordinará la entrega.' }}</p></section>
 <div class="order-grid">
 <section class="card-table">
   {% for item in order.items %}
@@ -9,9 +10,18 @@
   {% endfor %}
   <hr>
   <div class="summary-line"><span>Subtotal</span><span>{{ order.subtotal_cents|money }}</span></div>
-  <div class="summary-line"><span>Entrega a domicilio</span><span>{{ order.shipping_cents|money }}</span></div>
+  <div class="summary-line"><span>{{ strategy.label if strategy else order.fulfillment_method }}</span><span>{{ order.shipping_cents|money }}</span></div>
   <div class="summary-line total"><span>Total</span><span>{{ order.total_cents|money }}</span></div>
 </section>
-<aside class="summary-card"><h3>Detalles</h3><p><strong>{{ order.customer_email }}</strong></p><p>{{ order.shipping_address }}</p><p class="muted">Pago: {{ order.payment_reference }}<br>Estado: {{ 'Confirmado' if order.status == 'confirmed' else order.status }}</p></aside>
+<aside class="summary-card">
+  <h3>Detalles</h3>
+  <p><strong>{{ order.customer_email }}</strong></p>
+  {% if strategy and not strategy.requires_address %}
+  <p><strong>Recoger en agencia</strong></p>
+  {% else %}
+  <p><strong>Dirección de entrega</strong><br>{{ order.shipping_address }}</p>
+  {% endif %}
+  <p class="muted">Pago: {{ order.payment_reference }}<br>Estado: {{ 'Confirmado' if order.status == 'confirmed' else order.status }}</p>
+</aside>
 </div>
 {% endblock %}
