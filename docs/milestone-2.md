@@ -151,7 +151,7 @@ Checkout depends only on the `FulfillmentStrategy` interface and does not know w
 <!-- TODO: complete when the checkout, persistence and UI PRs are merged. -->
 
 - **New module `src/store/fulfillment.py`.** Strategy interface, `StorePickup`, `FlatRateShipping`, registry and `calculate_totals`.
-- **`Order.fulfillment_method`.** New column; existing rows default to `standard`. *(Pending: persistence PR.)*
+- **`Order.fulfillment_method`.** New `String(30)` column with default `standard`. It stores the strategy code as plain text instead of a DB enum, so adding an option needs no schema change. **Migration:** `db.init_app` runs `_ensure_order_fulfillment_column`, an idempotent `ALTER TABLE orders ADD COLUMN ... NOT NULL DEFAULT 'standard'` that only runs when the column is missing. We chose it over `reset_db.py` + `seed.py` (the starter's suggested approach) because it keeps existing `store.db` files and their orders working with no manual step. Trade-off: `db.py` now contains schema-specific logic, and each future column would need its own check; for one column this is cheaper than adopting a migration framework, which the starter explicitly avoids. Existing orders are read as `standard`, the only option that existed before.
 - **`routes/checkout.py`.** Uses `get_strategy` / `validate` / `calculate_totals`; `STANDARD_SHIPPING_CENTS` is removed. *(Pending: checkout PR.)*
 - **Templates.** Options rendered from the registry; the address field is shown only when required. *(Pending: UI PR.)*
 
