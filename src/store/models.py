@@ -28,6 +28,11 @@ class Order(Base):
     customer_name: Mapped[str] = mapped_column(String(120))
     customer_email: Mapped[str] = mapped_column(String(160))
     shipping_address: Mapped[str] = mapped_column(Text)
+    fulfillment_method: Mapped[str] = mapped_column(
+        String(30),
+        default="standard",
+        server_default="standard",
+    )
     subtotal_cents: Mapped[int] = mapped_column(Integer)
     shipping_cents: Mapped[int] = mapped_column(Integer)
     total_cents: Mapped[int] = mapped_column(Integer)
