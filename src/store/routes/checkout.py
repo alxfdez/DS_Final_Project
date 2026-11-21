@@ -3,13 +3,18 @@ from __future__ import annotations
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 
 from ..db import get_session
+from ..fulfillment import (
+    DEFAULT_STRATEGY_CODE,
+    FulfillmentRequest,
+    available_strategies,
+    calculate_totals,
+    get_strategy,
+)
 from ..models import Order, OrderItem
 from ..payments import FakePaymentProcessor, PaymentDeclined
 from .cart import get_cart_lines
 
 bp = Blueprint("checkout", __name__, url_prefix="/checkout")
-# Semiusados.com: flat home-delivery fee for a car (MXN cents).
-STANDARD_SHIPPING_CENTS = 250_000
 
 
 @bp.get("")
@@ -19,13 +24,26 @@ def checkout_form():
     if not lines:
         flash("Tu carrito está vacío.", "error")
         return redirect(url_for("cart.view_cart"))
-    subtotal = sum(line.line_total_cents for line in lines)
+    fulfillment_request = FulfillmentRequest.from_cart(lines)
+    fulfillment_options = []
+    for strategy in available_strategies():
+        totals = calculate_totals(strategy, fulfillment_request)
+        fulfillment_options.append({
+            "strategy": strategy,
+            "shipping_cents": totals.shipping_cents,
+            "total_cents": totals.total_cents,
+        })
+    default_option = next(
+        option for option in fulfillment_options
+        if option["strategy"].code == DEFAULT_STRATEGY_CODE
+    )
     return render_template(
         "checkout.html",
         lines=lines,
-        subtotal_cents=subtotal,
-        shipping_cents=STANDARD_SHIPPING_CENTS,
-        total_cents=subtotal + STANDARD_SHIPPING_CENTS,
+        subtotal_cents=fulfillment_request.subtotal_cents,
+        fulfillment_options=fulfillment_options,
+        default_fulfillment_method=DEFAULT_STRATEGY_CODE,
+        default_option=default_option,
     )
 
 
@@ -41,8 +59,20 @@ def place_order():
     customer_email = request.form.get("customer_email", "").strip()
     shipping_address = request.form.get("shipping_address", "").strip()
     payment_token = request.form.get("payment_token", "").strip()
+    fulfillment_method = request.form.get("fulfillment_method")
 
-    if not all([customer_name, customer_email, shipping_address, payment_token]):
+    strategy = get_strategy(fulfillment_method)
+    if strategy is None:
+        flash("Selecciona un método de entrega válido.", "error")
+        return redirect(url_for("checkout.checkout_form"))
+
+    fulfillment_request = FulfillmentRequest.from_cart(lines, shipping_address)
+    validation_error = strategy.validate(fulfillment_request)
+    if validation_error:
+        flash(validation_error, "error")
+        return redirect(url_for("checkout.checkout_form"))
+
+    if not all([customer_name, customer_email, payment_token]):
         flash("Completa todos los campos del checkout.", "error")
         return redirect(url_for("checkout.checkout_form"))
 
@@ -51,11 +81,10 @@ def place_order():
             flash(f"No hay suficiente inventario de {line.product.name}.", "error")
             return redirect(url_for("cart.view_cart"))
 
-    subtotal = sum(line.line_total_cents for line in lines)
-    total = subtotal + STANDARD_SHIPPING_CENTS
+    totals = calculate_totals(strategy, fulfillment_request)
 
     try:
-        payment_reference = FakePaymentProcessor().charge(total, payment_token)
+        payment_reference = FakePaymentProcessor().charge(totals.total_cents, payment_token)
     except PaymentDeclined:
         flash("El pago fue rechazado. Intenta con otro token de prueba.", "error")
         return redirect(url_for("checkout.checkout_form"))
@@ -63,10 +92,11 @@ def place_order():
     order = Order(
         customer_name=customer_name,
         customer_email=customer_email,
-        shipping_address=shipping_address,
-        subtotal_cents=subtotal,
-        shipping_cents=STANDARD_SHIPPING_CENTS,
-        total_cents=total,
+        shipping_address="" if strategy.code == "pickup" else fulfillment_request.shipping_address,
+        fulfillment_method=strategy.code,
+        subtotal_cents=totals.subtotal_cents,
+        shipping_cents=totals.shipping_cents,
+        total_cents=totals.total_cents,
         payment_reference=payment_reference,
         status="confirmed",
     )

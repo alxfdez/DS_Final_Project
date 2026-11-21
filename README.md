@@ -8,7 +8,7 @@ The system is deliberately modest: it works, it has tests and persistence, and i
 
 - Visual product catalog and product detail pages
 - Session-based shopping cart
-- Checkout with one standard shipping option
+- Checkout with pickup, standard and express fulfillment options
 - Simulated payment provider
 - Persistent orders and order items
 - Inventory updates
