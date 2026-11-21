@@ -38,4 +38,10 @@ def create_app(test_config: dict | None = None) -> Flask:
     def money(cents: int) -> str:
         return f"${cents / 100:,.2f} MXN"
 
+    @app.template_filter("fulfillment_strategy")
+    def fulfillment_strategy(code: str):
+        from .fulfillment import get_strategy
+
+        return get_strategy(code)
+
     return app
