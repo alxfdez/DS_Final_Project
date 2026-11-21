@@ -1,5 +1,8 @@
+from dataclasses import dataclass
+
 from sqlalchemy import func, select
 
+from store import fulfillment
 from store.db import get_session
 from store.models import Order, Product
 
@@ -96,6 +99,38 @@ def test_pickup_discards_submitted_shipping_address(client, app, first_product_i
 
     with app.app_context():
         order = get_session().scalar(select(Order))
+        assert order.shipping_address == ""
+
+
+@dataclass(frozen=True)
+class _NoAddressStrategy:
+    code: str = "agency"
+    label: str = "Retiro en sucursal"
+    eta: str = "Disponible pronto"
+    requires_address: bool = False
+
+    def validate(self, request):
+        return None
+
+    def fee_cents(self, request):
+        return 0
+
+
+def test_address_handling_uses_strategy_not_pickup_code(
+    client, app, first_product_id, monkeypatch
+):
+    monkeypatch.setitem(fulfillment.STRATEGIES, "agency", _NoAddressStrategy())
+
+    _checkout(
+        client,
+        first_product_id,
+        fulfillment_method="agency",
+        address="Dirección que no corresponde",
+    )
+
+    with app.app_context():
+        order = get_session().scalar(select(Order))
+        assert order.fulfillment_method == "agency"
         assert order.shipping_address == ""
 
 

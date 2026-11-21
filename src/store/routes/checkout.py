@@ -92,7 +92,7 @@ def place_order():
     order = Order(
         customer_name=customer_name,
         customer_email=customer_email,
-        shipping_address="" if strategy.code == "pickup" else fulfillment_request.shipping_address,
+        shipping_address=fulfillment_request.shipping_address if strategy.requires_address else "",
         fulfillment_method=strategy.code,
         subtotal_cents=totals.subtotal_cents,
         shipping_cents=totals.shipping_cents,
