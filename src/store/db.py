@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from flask import Flask, current_app, g
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 
@@ -29,8 +29,20 @@ def init_app(app: Flask) -> None:
         expire_on_commit=False,
     )
     Base.metadata.create_all(engine)
+    _ensure_order_fulfillment_column(engine)
     app.teardown_appcontext(close_session)
 
+def _ensure_order_fulfillment_column(engine) -> None:
+    columns = {column["name"] for column in inspect(engine).get_columns("orders")}
+    if "fulfillment_method" in columns:
+        return
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "ALTER TABLE orders ADD COLUMN fulfillment_method "
+                "VARCHAR(30) NOT NULL DEFAULT 'standard'"
+            )
+        )
 
 def get_session() -> Session:
     if "db_session" not in g:
