@@ -316,18 +316,56 @@ Adding a fourth option, for example zone-based shipping, does not change this co
 
 **Regression check with the untouched M1 tests:** we took the M1 versions of `conftest.py`, `test_cart.py`, `test_catalog.py` and `test_checkout.py` (`git show e020450:tests/...`) and ran them against the M2 code. Result: **12 passed**. The original suite, without any edits, still passes after the change.
 
-<!-- TODO: insert pytest screenshot: docs/m2-pytest.png -->
+![pytest: 49 tests passed](m2-pytest.png)
+
+Local run with `.venv\Scripts\python.exe -m pytest -v`: **49 passed**. The output lists the six test files: the original `test_cart.py` and `test_catalog.py`, the extended `test_checkout.py`, and the new `test_fulfillment.py`, `test_fulfillment_checkout.py` and `test_order_persistence.py`.
 
 ## 9. Screenshots of the Working Fulfillment Options
 
-<!-- TODO: take these screenshots and save them in docs/ -->
+### 9.1 Checkout — Standard Shipping
 
-1. `docs/m2-checkout-standard.png`: checkout with **Envío estándar** selected. Address field visible, delivery $2,500.
-2. `docs/m2-checkout-express.png`: checkout with **Envío express** selected. Total updated with $5,900.
-3. `docs/m2-checkout-pickup.png`: checkout with **Recoger en agencia** selected. Address field hidden, delivery $0.
-4. `docs/m2-error-address.png`: error when submitting a shipping option without an address.
-5. `docs/m2-confirmation-pickup.png` and `docs/m2-confirmation-express.png`: confirmation pages showing the option.
-6. `docs/m2-orders.png`: order history with the option badge on each order.
+Address field visible and required; delivery $2,500.
+
+![Checkout with standard shipping selected](m2-checkout-standard.png)
+
+### 9.2 Checkout — Express Shipping
+
+The summary updates to the $5,900 delivery fee and the new total.
+
+![Checkout with express shipping selected](m2-checkout-express.png)
+
+### 9.3 Checkout — Store Pickup
+
+The address field is hidden; delivery $0, so the total equals the subtotal.
+
+![Checkout with store pickup selected](m2-checkout-pickup.png)
+
+### 9.4 Validation — shipping without an address
+
+With a shipping option selected, the address field becomes required, so the browser blocks the submission ("Please fill out this field"). This is only a usability check. The server applies the same rule through `strategy.validate()`, so a request that skips the browser is also rejected and no order is created (covered by `test_shipping_method_requires_address`).
+
+![Error when a shipping option has no address](m2-error-address.png)
+
+### 9.5 Order confirmation — Standard Shipping
+
+The confirmation shows the chosen option ("Envío estándar"), its fee and the delivery address.
+
+![Order confirmation with standard shipping](m2-confirmation-standard.png)
+
+### 9.6 Order confirmation — Store Pickup
+
+The confirmation shows "Recoger en agencia" with a $0 fee and no address.
+
+![Order confirmation with store pickup](m2-confirmation-pickup.png)
+
+### 9.7 Order history
+
+Each order in `/orders` shows the fulfillment option persisted with it:
+
+- Orders #3–#5 were placed with the new options: express, standard and pickup.
+- Orders #1 and #2 were placed on 2026-11-14, **before** this change, in the same `store.db`. After the migration added the column, they appear as "Envío estándar", the only option that existed then. This is the migration working on real existing data.
+
+![Order history with the fulfillment option of each order](m2-orders.png)
 
 ## 10. GitHub Actions Evidence
 
@@ -337,23 +375,25 @@ The `tests` workflow (`.github/workflows/tests.yml`, `pytest` on Ubuntu with Pyt
 - the `push` runs on each feature branch;
 - the `push` run on `main` after each merge. The last one is the merge of PR #7, with 49 tests.
 
-<!-- TODO: insert screenshot of the Actions tab: docs/m2-actions.png -->
+![GitHub Actions: all workflow runs passing](m2-actions.png)
+
+The Actions tab shows the `tests` workflow passing on the feature branches, on the pull requests (#6, #7) and on `main` after each merge. The two most recent runs are on `docs/milestone-2-final`, the branch of this document.
 
 ## 11. Git / PR Evidence
 
 We used one branch and one pull request per part of the change, merged into `main` in dependency order:
 
-| PR | Branch | Author | Content | CI |
-|---|---|---|---|---|
-| #3 | `feat/fulfillment-strategy` | Andres Juarez | Strategy module, 11 unit tests, first version of this document | ✅ |
-| #4 | `feat/order-fulfillment-column` | Alejandro Fernández Arias | `fulfillment_method` column, idempotent migration, persistence tests | ✅ |
-| #5 | `feat/checkout-fulfillment` | Alejandro Amarillas Coronado | `place_order` / `checkout_form` use the strategies; fix to rely on `requires_address` | ✅ |
-| #6 | `feat/fulfillment-ui` | Allison Briseyda Ávila Moctezuma | Option selector, dynamic summary, option shown in confirmation and history | ✅ |
-| #7 | `test/fulfillment-integration` | Ever Zaragoza Cerpas | End-to-end integration tests for the new options | ✅ |
+| PR | Branch | Author | Reviewer | Content | CI |
+|---|---|---|---|---|---|
+| #3 | `feat/fulfillment-strategy` | Andres Juarez | Alejandro Fernández Arias (approved) | Strategy module, 11 unit tests, first version of this document | ✅ |
+| #4 | `feat/order-fulfillment-column` | Alejandro Fernández Arias | Alejandro Amarillas Coronado (approved) | `fulfillment_method` column, idempotent migration, persistence tests | ✅ |
+| #5 | `feat/checkout-fulfillment` | Alejandro Amarillas Coronado | Allison Briseyda Ávila Moctezuma (approved) | `place_order` / `checkout_form` use the strategies; fix to rely on `requires_address` | ✅ |
+| #6 | `feat/fulfillment-ui` | Allison Briseyda Ávila Moctezuma | Ever Zaragoza Cerpas (approved) | Option selector, dynamic summary, option shown in confirmation and history | ✅ |
+| #7 | `test/fulfillment-integration` | Ever Zaragoza Cerpas | Isaac Alejandro García Ruiz (approved) | End-to-end integration tests for the new options | ✅ |
+| #8 | `docs/milestone-2-final` | Isaac Alejandro García Ruiz and Andres Juarez | Alejandro Fernández Arias (approved) | Completed documentation for the milestone | ✅ |
 
 Each PR is small and focused on one concern, so it can be reviewed on its own. The commit history on `main` shows the order: strategy → persistence → checkout → UI → integration tests.
 
-<!-- TODO: add the reviewer of each PR once the reviews are recorded on GitHub, and screenshots of the PR list and one PR's review/checks: docs/m2-prs.png -->
 
 ## 12. AI Use
 
