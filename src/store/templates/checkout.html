@@ -6,7 +6,25 @@
 <form method="post" class="form-card">
   <label>Nombre completo<input required name="customer_name" autocomplete="name"></label>
   <label>Correo electrónico<input required type="email" name="customer_email" autocomplete="email"></label>
-  <label>Dirección de entrega<textarea required name="shipping_address" rows="4"></textarea></label>
+  <fieldset>
+    <legend>Método de entrega</legend>
+    {% for option in fulfillment_options %}
+    <label>
+      <input
+        type="radio"
+        name="fulfillment_method"
+        value="{{ option.strategy.code }}"
+        data-requires-address="{{ 'true' if option.strategy.requires_address else 'false' }}"
+        data-shipping-cents="{{ option.shipping_cents }}"
+        data-total-cents="{{ option.total_cents }}"
+        {% if option.strategy.code == default_fulfillment_method %}checked{% endif %}
+      >
+      {{ option.strategy.label }} · {{ option.shipping_cents|money }}
+      <small>{{ option.strategy.eta }}</small>
+    </label>
+    {% endfor %}
+  </fieldset>
+  <label id="shipping-address-field">Dirección de entrega<textarea name="shipping_address" rows="4"></textarea></label>
   <label>Token de pago de prueba<input required name="payment_token" value="tok_success"><small>Usa <code>tok_fail</code> para simular un pago rechazado.</small></label>
   <button>Confirmar compra</button>
 </form>
@@ -14,8 +32,34 @@
   <h3>Resumen</h3>
   {% for line in lines %}<div class="summary-line"><span>{{ line.quantity }} × {{ line.product.name }}</span><span>{{ line.line_total_cents|money }}</span></div>{% endfor %}
   <hr><div class="summary-line"><span>Subtotal</span><span>{{ subtotal_cents|money }}</span></div>
-  <div class="summary-line"><span>Entrega a domicilio</span><span>{{ shipping_cents|money }}</span></div>
-  <div class="summary-line total"><span>Total</span><span>{{ total_cents|money }}</span></div>
+  <div class="summary-line"><span>Entrega</span><span id="shipping-cost">{{ default_option.shipping_cents|money }}</span></div>
+  <div class="summary-line total"><span>Total</span><span id="checkout-total">{{ default_option.total_cents|money }}</span></div>
 </aside>
 </div>
+<script>
+  const fulfillmentChoices = document.querySelectorAll('input[name="fulfillment_method"]');
+  const addressField = document.getElementById("shipping-address-field");
+  const shippingAddress = addressField.querySelector("textarea");
+  const shippingCost = document.getElementById("shipping-cost");
+  const checkoutTotal = document.getElementById("checkout-total");
+
+  function formatMoney(cents) {
+    return "$" + (cents / 100).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }) + " MXN";
+  }
+
+  function updateFulfillment() {
+    const selected = document.querySelector('input[name="fulfillment_method"]:checked');
+    const requiresAddress = selected.dataset.requiresAddress === "true";
+    addressField.hidden = !requiresAddress;
+    shippingAddress.required = requiresAddress;
+    shippingCost.textContent = formatMoney(Number(selected.dataset.shippingCents));
+    checkoutTotal.textContent = formatMoney(Number(selected.dataset.totalCents));
+  }
+
+  fulfillmentChoices.forEach((choice) => choice.addEventListener("change", updateFulfillment));
+  updateFulfillment();
+</script>
 {% endblock %}
