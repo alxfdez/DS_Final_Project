@@ -124,3 +124,23 @@ def test_migration_is_idempotent(tmp_path):
 
     with app.app_context():
         assert get_session().scalar(select(Order.fulfillment_method)) == "standard"
+
+def test_every_registered_fulfillment_option_can_be_persisted(app):
+    from store.fulfillment import available_strategies
+
+    codes = [strategy.code for strategy in available_strategies()]
+    with app.app_context():
+        db = get_session()
+        db.add_all(_new_order(fulfillment_method=code) for code in codes)
+        db.commit()
+        assert sorted(db.scalars(select(Order.fulfillment_method))) == sorted(codes)
+
+
+def test_order_default_matches_the_default_fulfillment_strategy(app):
+    from store.fulfillment import DEFAULT_STRATEGY_CODE
+
+    with app.app_context():
+        db = get_session()
+        db.add(_new_order())
+        db.commit()
+        assert db.scalar(select(Order.fulfillment_method)) == DEFAULT_STRATEGY_CODE
