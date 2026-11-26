@@ -8,10 +8,18 @@ from ..fulfillment import (
     FulfillmentRequest,
     available_strategies,
     calculate_totals,
-    get_strategy,
 )
-from ..models import Order, OrderItem
-from ..payments import FakePaymentProcessor, PaymentDeclined
+from ..ordering import (
+    ChargeWithProcessor,
+    InsufficientStock,
+    OrderingError,
+    OrderLine,
+    PaymentDeclined,
+    PlaceOrder,
+    UnknownSku,
+)
+from ..ordering import place_order as place_order_service
+from ..payments import FakePaymentProcessor
 from .cart import get_cart_lines
 
 bp = Blueprint("checkout", __name__, url_prefix="/checkout")
@@ -49,6 +57,11 @@ def checkout_form():
 
 @bp.post("")
 def place_order():
+    """Storefront adapter: form + session cart -> ordering service -> flash/redirect.
+
+    The ordering rules (fulfillment, stock, totals, payment, persistence) live
+    in :mod:`store.ordering`; this route only translates its input and errors.
+    """
     db = get_session()
     lines = get_cart_lines(db)
     if not lines:
@@ -57,65 +70,34 @@ def place_order():
 
     customer_name = request.form.get("customer_name", "").strip()
     customer_email = request.form.get("customer_email", "").strip()
-    shipping_address = request.form.get("shipping_address", "").strip()
     payment_token = request.form.get("payment_token", "").strip()
-    fulfillment_method = request.form.get("fulfillment_method")
 
-    strategy = get_strategy(fulfillment_method)
-    if strategy is None:
-        flash("Selecciona un método de entrega válido.", "error")
-        return redirect(url_for("checkout.checkout_form"))
-
-    fulfillment_request = FulfillmentRequest.from_cart(lines, shipping_address)
-    validation_error = strategy.validate(fulfillment_request)
-    if validation_error:
-        flash(validation_error, "error")
-        return redirect(url_for("checkout.checkout_form"))
-
+    # Form completeness is a storefront concern (the token only exists here).
     if not all([customer_name, customer_email, payment_token]):
         flash("Completa todos los campos del checkout.", "error")
         return redirect(url_for("checkout.checkout_form"))
 
-    for line in lines:
-        if line.quantity > line.product.stock_quantity:
-            flash(f"No hay suficiente inventario de {line.product.name}.", "error")
-            return redirect(url_for("cart.view_cart"))
-
-    totals = calculate_totals(strategy, fulfillment_request)
+    command = PlaceOrder(
+        customer_name=customer_name,
+        customer_email=customer_email,
+        shipping_address=request.form.get("shipping_address", ""),
+        fulfillment_method=request.form.get("fulfillment_method"),
+        lines=tuple(OrderLine(sku=line.product.sku, quantity=line.quantity) for line in lines),
+    )
+    payment = ChargeWithProcessor(payment_token, processor=FakePaymentProcessor())
 
     try:
-        payment_reference = FakePaymentProcessor().charge(totals.total_cents, payment_token)
+        order = place_order_service(db, command, payment)
+    except (InsufficientStock, UnknownSku) as error:
+        flash(str(error), "error")
+        return redirect(url_for("cart.view_cart"))
     except PaymentDeclined:
         flash("El pago fue rechazado. Intenta con otro token de prueba.", "error")
         return redirect(url_for("checkout.checkout_form"))
+    except OrderingError as error:
+        flash(str(error), "error")
+        return redirect(url_for("checkout.checkout_form"))
 
-    order = Order(
-        customer_name=customer_name,
-        customer_email=customer_email,
-        shipping_address=fulfillment_request.shipping_address if strategy.requires_address else "",
-        fulfillment_method=strategy.code,
-        subtotal_cents=totals.subtotal_cents,
-        shipping_cents=totals.shipping_cents,
-        total_cents=totals.total_cents,
-        payment_reference=payment_reference,
-        status="confirmed",
-    )
-    db.add(order)
-    db.flush()
-
-    for line in lines:
-        order.items.append(
-            OrderItem(
-                product_id=line.product.id,
-                sku=line.product.sku,
-                product_name=line.product.name,
-                unit_price_cents=line.product.price_cents,
-                quantity=line.quantity,
-            )
-        )
-        line.product.stock_quantity -= line.quantity
-
-    db.commit()
     session["cart"] = {}
     flash("¡Compra realizada con éxito!", "success")
     return redirect(url_for("orders.order_detail", order_id=order.id))
