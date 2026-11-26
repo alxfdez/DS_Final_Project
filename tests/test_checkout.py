@@ -189,3 +189,42 @@ def test_order_history_displays_persisted_order(client, first_product_id):
     assert response.status_code == 200
     assert b"Pedido #1" in response.data
     assert b"Ada Lovelace" in response.data
+
+
+def test_missing_required_fields_are_rejected(client, app, first_product_id):
+    client.post(f"/cart/add/{first_product_id}")
+
+    response = client.post(
+        "/checkout",
+        data={
+            "customer_name": "Ada Lovelace",
+            "customer_email": "ada@example.com",
+            "shipping_address": "123 Analytical Engine Way",
+            "payment_token": "",
+            "fulfillment_method": "standard",
+        },
+        follow_redirects=True,
+    )
+
+    assert "Completa todos los campos del checkout".encode() in response.data
+    with app.app_context():
+        assert get_session().scalar(select(func.count()).select_from(Order)) == 0
+        assert get_session().get(Product, first_product_id).stock_quantity == 5
+
+
+def test_checkout_route_delegates_order_creation_to_ordering_service():
+    """The storefront must not keep its own copy of the ordering workflow."""
+    import ast
+    from pathlib import Path
+
+    import store.routes.checkout as checkout_route
+
+    tree = ast.parse(Path(checkout_route.__file__).read_text(encoding="utf-8"))
+    called = {
+        node.func.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+
+    assert "place_order_service" in called
+    assert not {"Order", "OrderItem"} & called
