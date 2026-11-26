@@ -9,3 +9,5 @@ instance/
 .DS_Store
 .idea/
 .vscode/
+
+scripts/md_to_pdf.py
