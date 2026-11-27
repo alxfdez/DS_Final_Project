@@ -23,6 +23,11 @@ class Product(Base):
 
 ORDER_ORIGIN_UNIQUE_INDEX = "uq_orders_source_external_order_id"
 
+# Order.source values. Use these instead of string literals: a typo would
+# create a separate key space and silently bypass duplicate detection.
+SOURCE_STOREFRONT = "storefront"
+SOURCE_MARKETPLACE = "marketplace"
+
 
 class Order(Base):
     __tablename__ = "orders"
@@ -35,8 +40,8 @@ class Order(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     source: Mapped[str] = mapped_column(
         String(20),
-        default="storefront",
-        server_default="storefront",
+        default=SOURCE_STOREFRONT,
+        server_default=SOURCE_STOREFRONT,
     )
     external_order_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
     customer_name: Mapped[str] = mapped_column(String(120))

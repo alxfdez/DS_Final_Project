@@ -11,6 +11,7 @@
     <strong>Pedido #{{ order.id }}</strong>
     <small>{{ order.customer_name }} · {{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
     <span class="fulfillment-badge">{{ strategy.label if strategy else order.fulfillment_method }}</span>
+    {% if order.source == 'marketplace' %}<span class="fulfillment-badge source-badge">Marketplace · {{ order.external_order_id }}</span>{% endif %}
   </span>
   <span>{{ order.total_cents|money }}</span>
 </a>

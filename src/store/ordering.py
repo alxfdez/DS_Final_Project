@@ -3,6 +3,7 @@
 This module owns the business rules that turn "these SKUs for this customer"
 into a persisted order:
 
+0. if the external order was already placed, return it (idempotency);
 1. resolve the fulfillment strategy and validate it;
 2. resolve SKUs against the catalog and check inventory;
 3. compute totals;
@@ -28,10 +29,11 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .fulfillment import FulfillmentRequest, calculate_totals, get_strategy
-from .models import Order, OrderItem, Product
+from .models import SOURCE_STOREFRONT, Order, OrderItem, Product
 from .payments import FakePaymentProcessor, PaymentDeclined
 
 __all__ = [
@@ -41,10 +43,13 @@ __all__ = [
     "InvalidFulfillment",
     "InvalidOrder",
     "OrderLine",
+    "OrderOrigin",
     "OrderingError",
     "PaymentDeclined",
     "PaymentMethod",
     "PlaceOrder",
+    "PlacedOrder",
+    "STOREFRONT_ORIGIN",
     "UnknownSku",
     "place_order",
 ]
@@ -60,6 +65,21 @@ class OrderLine:
 
 
 @dataclass(frozen=True)
+class OrderOrigin:
+    """Which entry point sent the order and, for external channels, its own ID.
+
+    ``(source, external_order_id)`` is the idempotency key: placing the same
+    external order twice returns the order that already exists.
+    """
+
+    source: str
+    external_order_id: str | None = None
+
+
+STOREFRONT_ORIGIN = OrderOrigin(SOURCE_STOREFRONT)
+
+
+@dataclass(frozen=True)
 class PlaceOrder:
     """Everything the core needs to place an order, independent of the channel."""
 
@@ -68,6 +88,15 @@ class PlaceOrder:
     lines: tuple[OrderLine, ...]
     fulfillment_method: str | None = None
     shipping_address: str = ""
+    origin: OrderOrigin = STOREFRONT_ORIGIN
+
+
+@dataclass(frozen=True)
+class PlacedOrder:
+    """Result of :func:`place_order`. ``created`` is False for a repeated external order."""
+
+    order: Order
+    created: bool
 
 
 # --------------------------------------------------------------------------- #
@@ -145,11 +174,22 @@ class _ResolvedLine:
         return self.product.price_cents * self.quantity
 
 
-def place_order(db: Session, command: PlaceOrder, payment: PaymentMethod) -> Order:
+def place_order(db: Session, command: PlaceOrder, payment: PaymentMethod) -> PlacedOrder:
     """Validate, collect payment and persist an order atomically.
 
     Nothing is written (and stock is untouched) if any step fails.
+
+    When the origin carries an external order ID that was already stored, the
+    existing order is returned with ``created=False`` *before* any validation
+    or payment: a retry must get the original order even if, for example, the
+    car has sold out since.
     """
+    origin = command.origin
+    if origin.external_order_id is not None:
+        existing = _find_by_origin(db, origin)
+        if existing is not None:
+            return PlacedOrder(existing, created=False)
+
     strategy = get_strategy(command.fulfillment_method)
     if strategy is None:
         raise InvalidFulfillment("Selecciona un método de entrega válido.")
@@ -180,6 +220,8 @@ def place_order(db: Session, command: PlaceOrder, payment: PaymentMethod) -> Ord
         total_cents=totals.total_cents,
         payment_reference=payment_reference,
         status="confirmed",
+        source=origin.source,
+        external_order_id=origin.external_order_id,
     )
     try:
         db.add(order)
@@ -195,10 +237,27 @@ def place_order(db: Session, command: PlaceOrder, payment: PaymentMethod) -> Ord
             )
             line.product.stock_quantity -= line.quantity
         db.commit()
+    except IntegrityError:
+        # Another request stored the same external order between our lookup
+        # and this commit; the unique index rejected ours. Return the winner.
+        db.rollback()
+        existing = _find_by_origin(db, origin) if origin.external_order_id is not None else None
+        if existing is None:
+            raise
+        return PlacedOrder(existing, created=False)
     except Exception:
         db.rollback()
         raise
-    return order
+    return PlacedOrder(order, created=True)
+
+
+def _find_by_origin(db: Session, origin: OrderOrigin) -> Order | None:
+    return db.scalar(
+        select(Order).where(
+            Order.source == origin.source,
+            Order.external_order_id == origin.external_order_id,
+        )
+    )
 
 
 def _resolve_lines(db: Session, requested: Iterable[OrderLine]) -> list[_ResolvedLine]:

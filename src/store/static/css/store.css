@@ -42,3 +42,4 @@ code { background:#e9edf3; padding:2px 5px; border-radius:5px; }
 @media (max-width:760px) { .site-header { padding:0 5vw; }.page-shell { width:92vw; }.hero { padding:36px 26px; }.product-detail,.cart-layout,.checkout-layout,.order-grid { grid-template-columns:1fr; }.summary-card { position:static; }.cart-row { align-items:flex-start; flex-wrap:wrap; }.qty-form { width:100%; }.section-heading { align-items:start; flex-direction:column; gap:8px; } }
 [hidden] { display:none !important; }
 .fulfillment-options { min-width:0; }
+.source-badge { margin-left:6px; background:#fff4e0; color:#8a5300; }

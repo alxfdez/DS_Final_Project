@@ -21,7 +21,7 @@
   {% else %}
   <p><strong>Dirección de entrega</strong><br>{{ order.shipping_address }}</p>
   {% endif %}
-  <p class="muted">Pago: {{ order.payment_reference }}<br>Estado: {{ 'Confirmado' if order.status == 'confirmed' else order.status }}</p>
+  <p class="muted">Pago: {{ order.payment_reference }}<br>{% if order.source == 'marketplace' %}Origen: Marketplace · pedido externo {{ order.external_order_id }}<br>{% endif %}Estado: {{ 'Confirmado' if order.status == 'confirmed' else order.status }}</p>
 </aside>
 </div>
 {% endblock %}
