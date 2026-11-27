@@ -16,6 +16,8 @@ def create_app(test_config: dict | None = None) -> Flask:
         SECRET_KEY=os.environ.get("STORE_SECRET_KEY", "dev-only-change-me"),
         DATABASE=os.environ.get("STORE_DATABASE", str(database_path)),
         STORE_NAME=os.environ.get("STORE_NAME", "Semiusados.com"),
+        # Shared secret the marketplace sends in X-Marketplace-Key.
+        MARKETPLACE_API_KEY=os.environ.get("MARKETPLACE_API_KEY", "dev-marketplace-key"),
     )
 
     if test_config:
@@ -27,12 +29,14 @@ def create_app(test_config: dict | None = None) -> Flask:
     from .routes.catalog import bp as catalog_bp
     from .routes.cart import bp as cart_bp
     from .routes.checkout import bp as checkout_bp
+    from .routes.marketplace import bp as marketplace_bp
     from .routes.orders import bp as orders_bp
 
     app.register_blueprint(catalog_bp)
     app.register_blueprint(cart_bp)
     app.register_blueprint(checkout_bp)
     app.register_blueprint(orders_bp)
+    app.register_blueprint(marketplace_bp)
 
     @app.template_filter("money")
     def money(cents: int) -> str:

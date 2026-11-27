@@ -87,7 +87,7 @@ def place_order():
     payment = ChargeWithProcessor(payment_token, processor=FakePaymentProcessor())
 
     try:
-        order = place_order_service(db, command, payment)
+        order = place_order_service(db, command, payment).order
     except (InsufficientStock, UnknownSku) as error:
         flash(str(error), "error")
         return redirect(url_for("cart.view_cart"))
