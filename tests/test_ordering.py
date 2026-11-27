@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 import store.ordering as ordering_module
 from store.db import get_session
@@ -277,3 +278,36 @@ def test_concurrent_duplicate_rejected_by_database_returns_the_winner(db, monkey
     assert loser.order.id == winner.id
     assert _order_count(db) == 1
     assert _stock(db, "TEST-1") == 4  # the losing attempt was rolled back
+
+
+# --------------------------------------------------------------------------- #
+# Transaction safety when the commit itself fails
+# --------------------------------------------------------------------------- #
+def _fail_commit_with(db, monkeypatch, error):
+    def _commit():
+        raise error
+
+    monkeypatch.setattr(db, "commit", _commit)
+
+
+def test_database_failure_on_commit_rolls_back_everything(db, monkeypatch):
+    _fail_commit_with(db, monkeypatch, OperationalError("COMMIT", {}, Exception("disk I/O error")))
+
+    with pytest.raises(OperationalError):
+        place_order(db, _command(), AlreadyPaid("mkt_1"))
+
+    monkeypatch.undo()
+    assert _order_count(db) == 0
+    assert _stock(db, "TEST-1") == 5
+
+
+def test_integrity_error_without_external_id_is_not_treated_as_duplicate(db, monkeypatch):
+    """Only a real (source, external_order_id) collision may return an existing order."""
+    _fail_commit_with(db, monkeypatch, IntegrityError("INSERT", {}, Exception("other constraint")))
+
+    with pytest.raises(IntegrityError):
+        place_order(db, _command(), AlreadyPaid("pay_1"))
+
+    monkeypatch.undo()
+    assert _order_count(db) == 0
+    assert _stock(db, "TEST-1") == 5

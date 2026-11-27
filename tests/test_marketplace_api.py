@@ -126,8 +126,18 @@ def test_requests_without_a_valid_api_key_are_rejected(client, app, headers):
         _payload(items=[{"sku": "TEST-1", "quantity": 0}]),
         _payload(items=[{"sku": "TEST-1", "quantity": True}]),
         _payload(items=[{"quantity": 1}]),
+        _payload(items=["TEST-1"]),
+        _payload(marketplace_order_id=1001),
+        _payload(buyer="Grace"),
+        _payload(shipping="standard"),
+        _payload(shipping={"method": 1, "address": "Av. Vallarta 123"}),
+        _payload(shipping={"method": "standard", "address": ["Av. Vallarta"]}),
     ],
-    ids=["blank-id", "long-id", "no-email", "no-items", "zero-qty", "bool-qty", "no-sku"],
+    ids=[
+        "blank-id", "long-id", "no-email", "no-items", "zero-qty", "bool-qty", "no-sku",
+        "item-not-object", "numeric-id", "buyer-not-object", "shipping-not-object",
+        "method-not-string", "address-not-string",
+    ],
 )
 def test_malformed_payloads_are_rejected_with_400(client, app, payload):
     response = _post(client, payload)

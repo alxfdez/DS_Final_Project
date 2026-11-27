@@ -8,6 +8,26 @@ from store.db import get_session
 from store.models import Product
 
 
+@pytest.fixture(autouse=True)
+def dispose_engines(monkeypatch):
+    """Close the SQLite engine of every app a test creates (including the
+    "restarted" apps in persistence tests), so no connection leaks between
+    tests as ResourceWarning."""
+    import store
+
+    created = []
+    real_init = store.init_database
+
+    def tracking_init(app):
+        real_init(app)
+        created.append(app.extensions["store_engine"])
+
+    monkeypatch.setattr(store, "init_database", tracking_init)
+    yield
+    for engine in created:
+        engine.dispose()
+
+
 @pytest.fixture()
 def app(tmp_path: Path):
     db_path = tmp_path / "test.db"

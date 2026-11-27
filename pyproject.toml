@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<10"]
+dev = ["pytest>=8,<10", "pytest-cov>=5,<8"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -25,3 +25,13 @@ store = ["templates/*.html", "static/css/*.css", "static/images/*.svg"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 addopts = "-q"
+
+[tool.coverage.run]
+source = ["store"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+# CI fails if coverage of the application code drops below this.
+fail_under = 90
