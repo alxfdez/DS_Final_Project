@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -21,10 +21,24 @@ class Product(Base):
     active: Mapped[int] = mapped_column(Integer, default=1)
 
 
+ORDER_ORIGIN_UNIQUE_INDEX = "uq_orders_source_external_order_id"
+
+
 class Order(Base):
     __tablename__ = "orders"
+    __table_args__ = (
+        # One order per external order ID and channel. Storefront orders keep
+        # external_order_id NULL, and SQLite allows many NULLs in a unique index.
+        Index(ORDER_ORIGIN_UNIQUE_INDEX, "source", "external_order_id", unique=True),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    source: Mapped[str] = mapped_column(
+        String(20),
+        default="storefront",
+        server_default="storefront",
+    )
+    external_order_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
     customer_name: Mapped[str] = mapped_column(String(120))
     customer_email: Mapped[str] = mapped_column(String(160))
     shipping_address: Mapped[str] = mapped_column(Text)

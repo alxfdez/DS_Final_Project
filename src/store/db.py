@@ -29,18 +29,34 @@ def init_app(app: Flask) -> None:
         expire_on_commit=False,
     )
     Base.metadata.create_all(engine)
-    _ensure_order_fulfillment_column(engine)
+    _upgrade_orders_table(engine)
     app.teardown_appcontext(close_session)
 
-def _ensure_order_fulfillment_column(engine) -> None:
-    columns = {column["name"] for column in inspect(engine).get_columns("orders")}
-    if "fulfillment_method" in columns:
-        return
+
+# Columns added to ``orders`` after the first release, in the order they were
+# introduced. ``create_all`` never alters an existing table, so databases
+# created by an older version get them here. Every step is safe to re-run.
+_ORDERS_ADDED_COLUMNS = {
+    "fulfillment_method": "VARCHAR(30) NOT NULL DEFAULT 'standard'",
+    "source": "VARCHAR(20) NOT NULL DEFAULT 'storefront'",
+    "external_order_id": "VARCHAR(80)",
+}
+
+
+def _upgrade_orders_table(engine) -> None:
+    from .models import ORDER_ORIGIN_UNIQUE_INDEX
+
+    existing = {column["name"] for column in inspect(engine).get_columns("orders")}
     with engine.begin() as connection:
+        for name, ddl in _ORDERS_ADDED_COLUMNS.items():
+            if name not in existing:
+                connection.execute(text(f"ALTER TABLE orders ADD COLUMN {name} {ddl}"))
+        # SQLite cannot add a constraint with ALTER TABLE; a unique index gives
+        # the same guarantee and matches what create_all builds for new databases.
         connection.execute(
             text(
-                "ALTER TABLE orders ADD COLUMN fulfillment_method "
-                "VARCHAR(30) NOT NULL DEFAULT 'standard'"
+                f"CREATE UNIQUE INDEX IF NOT EXISTS {ORDER_ORIGIN_UNIQUE_INDEX} "
+                "ON orders (source, external_order_id)"
             )
         )
 
