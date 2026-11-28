@@ -380,13 +380,17 @@ curl -i -X POST http://127.0.0.1:5000/api/marketplace/orders \
 The customer adds a car to the cart, chooses a fulfillment option and pays with
 a test token. The pages, messages and fees are the same as in M2.
 
+![Cart before checkout](m3-storefront-pre-checkout.png)
+
 ![Storefront checkout](m3-storefront-checkout.png)
 
 ![Storefront order confirmation](m3-storefront-confirmation.png)
 
 ### 10.2 Marketplace order: first request (201) and retry (200)
 
-![Marketplace request: 201 then 200 with the same order_id](m3-marketplace-curl.png)
+![Marketplace request: 201](m3-marketplace-curl.png)
+
+![Marketplace request: 200 after retrying](m3-marketplace-curl2.png)
 
 ### 10.3 One shared order history
 
@@ -518,8 +522,8 @@ dependency order:
 | #10 | `refactor/checkout-uses-ordering-service` | Allison Briseyda Ávila Moctezuma | Isaac Alejandro García Ruiz (approved) | Storefront checkout becomes a thin adapter; storefront tests pass unedited | ✅ |
 | #11 | `feat/order-origin-persistence` | Isaac Alejandro García Ruiz | Alejandro Fernández Arias (approved) | `source` / `external_order_id`, unique index, M1/M2 database upgrade | ✅ |
 | #12 | `feat/marketplace-orders-api` | Alejandro Fernández Arias | Ever Zaragoza Cerpas (approved) | Idempotency in the service, `POST /api/marketplace/orders`, marketplace label in history | ✅ |
-| #13 | `test/cross-channel-and-ci-milestone3` | Ever Zaragoza Cerpas | _(fill in)_ | Cross-channel + architecture tests, coverage ≥ 90%, Python 3.11–3.13 matrix | ✅ |
-| #14 | `docs/milestone-3` | _(fill in)_ | _(fill in)_ | This document and ADR 0001 | ✅ |
+| #13 | `test/cross-channel-and-ci-milestone3` | Ever Zaragoza Cerpas | Andres Juarez | Cross-channel + architecture tests, coverage ≥ 90%, Python 3.11–3.13 matrix | ✅ |
+| #14 | `docs/milestone-3` | Alejandro Amarillas Coronado y Alejandro Fernández Arias | Andres Juarez | This document and ADR 0001 | ✅ |
 
 Review comments were not only approvals. They led to code changes:
 
